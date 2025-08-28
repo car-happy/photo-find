@@ -1,81 +1,113 @@
 <!DOCTYPE html>
-<html lang="en" >
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Photo Location Finder with Drag & Drop</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 650px;
-      margin: 20px auto;
-      padding: 0 15px;
-      background: #f9f9f9;
-      color: #333;
+      max-width: 700px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f0f8ff;
+      color: #222;
+      user-select: none;
     }
     h1 {
       text-align: center;
+      margin-bottom: 40px;
+      font-size: 2.2rem;
+      color: #004d40;
     }
     #drop-area {
-      border: 3px dashed #666;
-      border-radius: 12px;
-      padding: 30px;
+      border: 4px dashed #00796b;
+      border-radius: 15px;
+      padding: 50px;
       text-align: center;
-      font-size: 18px;
-      color: #666;
-      background: #fff;
+      font-size: 1.5rem;
+      color: #00796b;
+      font-weight: bold;
       cursor: pointer;
-      transition: background-color 0.3s ease;
+      background: #b2dfdb;
+      transition: background-color 0.3s ease, border-color 0.3s ease;
+      margin-bottom: 25px;
     }
     #drop-area.highlight {
-      background-color: #e0f7fa;
-      border-color: #26a69a;
-      color: #00796b;
+      background-color: #004d40;
+      color: #e0f2f1;
+      border-color: #004d40;
+    }
+    #browseBtn {
+      display: inline-block;
+      margin-top: 15px;
+      padding: 12px 30px;
+      font-size: 1.2rem;
+      border: none;
+      border-radius: 12px;
+      background-color: #00796b;
+      color: white;
+      cursor: pointer;
+      user-select: none;
+      transition: background-color 0.3s ease;
+    }
+    #browseBtn:hover {
+      background-color: #004d40;
     }
     #fileElem {
       display: none;
     }
     #output img {
       max-width: 100%;
-      margin-top: 15px;
-      border-radius: 8px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.2);
+      border-radius: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+      user-select: none;
+    }
+    #location-text {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #004d40;
+      margin-bottom: 15px;
+      min-height: 24px;
     }
     #exif-data {
-      background: #fff;
-      padding: 10px 15px;
-      border-radius: 8px;
-      margin-top: 10px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.1);
+      background: #e0f2f1;
+      border-radius: 12px;
+      padding: 15px;
       font-family: monospace;
       white-space: pre-wrap;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-bottom: 25px;
+      color: #004d40;
+      box-shadow: inset 0 0 8px rgba(0,0,0,0.1);
     }
     #map {
       height: 350px;
-      margin-top: 20px;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      background: #fff;
+      border-radius: 15px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+      background: #e0f2f1;
+      margin-bottom: 25px;
+      user-select: none;
     }
     #resetBtn {
-      margin-top: 15px;
-      padding: 10px 20px;
-      background: #26a69a;
+      display: none;
+      background-color: #004d40;
       color: white;
+      font-weight: bold;
+      font-size: 1.2rem;
+      padding: 12px 30px;
       border: none;
-      border-radius: 8px;
-      font-size: 16px;
+      border-radius: 15px;
       cursor: pointer;
+      user-select: none;
       transition: background-color 0.3s ease;
+      margin: 0 auto;
+      display: block;
     }
     #resetBtn:hover {
-      background: #00796b;
-    }
-    #location-text {
-      margin-top: 15px;
-      font-weight: bold;
-      font-size: 18px;
-      color: #004d40;
+      background-color: #00796b;
     }
   </style>
   <link
@@ -86,17 +118,19 @@
 <body>
   <h1>Drag & Drop a Photo to Find Its Location</h1>
 
-  <div id="drop-area">
-    <p>Drag & Drop your photo here<br>or<br><button id="browseBtn">Browse Files</button></p>
+  <div id="drop-area" tabindex="0" aria-label="Drag and drop photo here or click to browse files">
+    Drag & Drop your photo here
+    <br />
+    <button id="browseBtn" aria-label="Browse files to upload photo">Browse Files</button>
     <input type="file" id="fileElem" accept="image/*" />
   </div>
 
-  <div id="output"></div>
-  <div id="location-text"></div>
+  <div id="output" aria-live="polite" aria-atomic="true"></div>
+  <div id="location-text" aria-live="polite" aria-atomic="true"></div>
   <div id="exif-data"></div>
   <div id="map"></div>
 
-  <button id="resetBtn" style="display:none;">Reset</button>
+  <button id="resetBtn">Reset</button>
 
   <script src="https://unpkg.com/exif-js"></script>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -112,18 +146,17 @@
 
     let map;
 
-    // Prevent default drag behaviors
+    // Prevent default drag behaviors for drop zone
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
       dropArea.addEventListener(eventName, preventDefaults, false);
-      document.body.addEventListener(eventName, preventDefaults, false);
     });
 
-    function preventDefaults (e) {
+    function preventDefaults(e) {
       e.preventDefault();
       e.stopPropagation();
     }
 
-    // Highlight drop area when item is dragged over it
+    // Highlight drop area when file is dragged over it
     ['dragenter', 'dragover'].forEach(eventName => {
       dropArea.addEventListener(eventName, () => dropArea.classList.add('highlight'), false);
     });
@@ -132,9 +165,13 @@
       dropArea.addEventListener(eventName, () => dropArea.classList.remove('highlight'), false);
     });
 
-    // Handle dropped files
+    // Handle file dropped
     dropArea.addEventListener('drop', handleDrop, false);
+
+    // Handle click on Browse Files button
     browseBtn.addEventListener('click', () => fileInput.click());
+
+    // Handle file selected via input
     fileInput.addEventListener('change', () => handleFiles(fileInput.files));
 
     function handleDrop(e) {
@@ -144,34 +181,41 @@
     }
 
     function toDecimal(coord, ref) {
-      let degrees = coord[0].numerator / coord[0].denominator;
-      let minutes = coord[1].numerator / coord[1].denominator;
-      let seconds = coord[2].numerator / coord[2].denominator;
+      const degrees = coord[0].numerator / coord[0].denominator;
+      const minutes = coord[1].numerator / coord[1].denominator;
+      const seconds = coord[2].numerator / coord[2].denominator;
       let dec = degrees + minutes / 60 + seconds / 3600;
-      return (ref === 'S' || ref === 'W') ? -dec : dec;
+      if (ref === 'S' || ref === 'W') dec = -dec;
+      return dec;
     }
 
     function handleFiles(files) {
       if (!files.length) return;
+
       const file = files[0];
+
+      // Clear previous data
       output.innerHTML = '';
       locationText.textContent = '';
       exifDataDiv.textContent = '';
       resetBtn.style.display = 'none';
+      mapDiv.innerHTML = '';
 
       if (map) {
         map.remove();
         map = null;
       }
 
-      // Validate image type
+      // Validate image file type
       if (!file.type.startsWith('image/')) {
-        alert('Please upload an image file.');
+        alert('Please upload a valid image file.');
         return;
       }
 
+      // Show image preview
       const img = document.createElement('img');
       img.src = URL.createObjectURL(file);
+      img.alt = 'Uploaded photo preview';
       output.appendChild(img);
 
       EXIF.getData(file, function() {
@@ -186,7 +230,7 @@
         if (lat && lon && latRef && lonRef) {
           const latitude = toDecimal(lat, latRef);
           const longitude = toDecimal(lon, lonRef);
-          locationText.textContent = `Location: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+          locationText.textContent = `Location found: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
 
           map = L.map('map').setView([latitude, longitude], 15);
           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -196,7 +240,6 @@
           L.marker([latitude, longitude]).addTo(map).bindPopup('Photo Location').openPopup();
         } else {
           locationText.textContent = 'No GPS data found in the photo.';
-          mapDiv.innerHTML = '';
         }
 
         resetBtn.style.display = 'inline-block';
@@ -207,11 +250,13 @@
       output.innerHTML = '';
       locationText.textContent = '';
       exifDataDiv.textContent = '';
+      mapDiv.innerHTML = '';
+      resetBtn.style.display = 'none';
       if (map) {
         map.remove();
         map = null;
       }
-      resetBtn.style.display = 'none';
+      fileInput.value = '';
     });
   </script>
 </body>
