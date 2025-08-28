@@ -2,73 +2,78 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Photo & Location Web App</title>
+  <title>Photo Location Finder</title>
   <style>
-    #video, #canvas {
-      width: 300px;
-      height: 225px;
-      border: 1px solid black;
-    }
-    #map {
-      width: 300px;
-      height: 300px;
-      margin-top: 10px;
-    }
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 20px auto; }
+    #map { height: 300px; margin-top: 20px; }
+    img { max-width: 100%; height: auto; margin-top: 10px; }
   </style>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet/dist/leaflet.css"
+  />
 </head>
 <body>
-  <h1>Photo & Location Finder</h1>
-  <video id="video" autoplay></video><br />
-  <button id="snap">Take Photo</button>
-  <canvas id="canvas"></canvas>
-  <p id="location"></p>
+  <h1>Upload a Photo to Find Location</h1>
+  <input type="file" id="fileInput" accept="image/*" />
+  <div id="output"></div>
   <div id="map"></div>
 
-  <!-- Leaflet.js for map -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/exif-js"></script>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
   <script>
-    const video = document.getElementById('video');
-    const canvas = document.getElementById('canvas');
-    const snap = document.getElementById('snap');
-    const locationText = document.getElementById('location');
-    const context = canvas.getContext('2d');
-    const mapDiv = document.getElementById('map');
+    const fileInput = document.getElementById('fileInput');
+    const output = document.getElementById('output');
     let map;
 
-    // Access camera
-    navigator.mediaDevices.getUserMedia({ video: true })
-      .then(stream => {
-        video.srcObject = stream;
-      })
-      .catch(err => alert('Error accessing camera: ' + err));
+    // Converts EXIF GPS coordinates (DMS) to decimal
+    function toDecimal(coord, ref) {
+      let degrees = coord[0].numerator / coord[0].denominator;
+      let minutes = coord[1].numerator / coord[1].denominator;
+      let seconds = coord[2].numerator / coord[2].denominator;
 
-    snap.addEventListener('click', () => {
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    });
-
-    // Get geolocation
-    if ("geolocation" in navigator) {
-      navigator.geolocation.getCurrentPosition(position => {
-        const lat = position.coords.latitude;
-        const lon = position.coords.longitude;
-        locationText.textContent = `Your Location: ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
-
-        // Initialize map using Leaflet
-        map = L.map('map').setView([lat, lon], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-          attribution: '© OpenStreetMap'
-        }).addTo(map);
-        L.marker([lat, lon]).addTo(map).bindPopup("You are here").openPopup();
-      }, err => {
-        locationText.textContent = 'Error getting location: ' + err.message;
-      });
-    } else {
-      locationText.textContent = "Geolocation is not supported by your browser.";
+      let dec = degrees + minutes / 60 + seconds / 3600;
+      return (ref === 'S' || ref === 'W') ? -dec : dec;
     }
+
+    fileInput.addEventListener('change', (event) => {
+      output.innerHTML = '';
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const img = document.createElement('img');
+      img.src = URL.createObjectURL(file);
+      output.appendChild(img);
+
+      EXIF.getData(file, function() {
+        const lat = EXIF.getTag(this, 'GPSLatitude');
+        const lon = EXIF.getTag(this, 'GPSLongitude');
+        const latRef = EXIF.getTag(this, 'GPSLatitudeRef');
+        const lonRef = EXIF.getTag(this, 'GPSLongitudeRef');
+
+        if (lat && lon && latRef && lonRef) {
+          const latitude = toDecimal(lat, latRef);
+          const longitude = toDecimal(lon, lonRef);
+          output.innerHTML += `<p>Location found: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}</p>`;
+
+          // Show map
+          if (map) {
+            map.remove();
+          }
+          map = L.map('map').setView([latitude, longitude], 15);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+          }).addTo(map);
+          L.marker([latitude, longitude]).addTo(map).bindPopup('Photo Location').openPopup();
+        } else {
+          output.innerHTML += '<p>No GPS data found in the photo.</p>';
+          if (map) {
+            map.remove();
+          }
+        }
+      });
+    });
   </script>
 </body>
 </html>
