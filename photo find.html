@@ -7,7 +7,7 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 700px;
+      max-width: 900px;
       margin: 40px auto;
       padding: 20px;
       background: #f0f8ff;
@@ -16,40 +16,50 @@
     }
     h1 {
       text-align: center;
-      margin-bottom: 40px;
-      font-size: 2.2rem;
+      margin-bottom: 30px;
+      font-size: 2rem;
       color: #004d40;
     }
+    /* Drop area styles - made more prominent and ensured visibility */
     #drop-area {
+      display: block;
+      min-height: 160px;
       border: 4px dashed #00796b;
       border-radius: 15px;
-      padding: 50px;
+      padding: 30px;
       text-align: center;
-      font-size: 1.5rem;
+      font-size: 1.2rem;
       color: #00796b;
       font-weight: bold;
       cursor: pointer;
       background: #b2dfdb;
-      transition: background-color 0.3s ease, border-color 0.3s ease;
-      margin-bottom: 25px;
+      transition: background-color 0.25s ease, border-color 0.25s ease;
+      margin-bottom: 22px;
+      position: relative;
+      z-index: 1000;
     }
     #drop-area.highlight {
       background-color: #004d40;
       color: #e0f2f1;
       border-color: #004d40;
     }
+    #drop-area p {
+      margin: 6px 0;
+      font-size: 1rem;
+      font-weight: 600;
+    }
     #browseBtn {
       display: inline-block;
-      margin-top: 15px;
-      padding: 12px 30px;
-      font-size: 1.2rem;
+      margin-top: 12px;
+      padding: 10px 22px;
+      font-size: 1rem;
       border: none;
-      border-radius: 12px;
+      border-radius: 10px;
       background-color: #00796b;
       color: white;
       cursor: pointer;
       user-select: none;
-      transition: background-color 0.3s ease;
+      transition: background-color 0.2s ease;
     }
     #browseBtn:hover {
       background-color: #004d40;
@@ -59,36 +69,36 @@
     }
     #output img {
       max-width: 100%;
-      border-radius: 15px;
-      margin-bottom: 20px;
-      box-shadow: 0 6px 15px rgba(0,0,0,0.15);
+      border-radius: 12px;
+      margin-bottom: 16px;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.12);
       user-select: none;
     }
     #location-text {
-      font-size: 1.4rem;
+      font-size: 1.1rem;
       font-weight: 700;
       color: #004d40;
-      margin-bottom: 15px;
-      min-height: 24px;
+      margin-bottom: 12px;
+      min-height: 22px;
     }
     #exif-data {
       background: #e0f2f1;
-      border-radius: 12px;
-      padding: 15px;
+      border-radius: 10px;
+      padding: 12px;
       font-family: monospace;
       white-space: pre-wrap;
       max-height: 200px;
       overflow-y: auto;
-      margin-bottom: 25px;
+      margin-bottom: 18px;
       color: #004d40;
-      box-shadow: inset 0 0 8px rgba(0,0,0,0.1);
+      box-shadow: inset 0 0 6px rgba(0,0,0,0.06);
     }
     #map {
       height: 350px;
-      border-radius: 15px;
+      border-radius: 12px;
       box-shadow: 0 10px 20px rgba(0,0,0,0.1);
       background: #e0f2f1;
-      margin-bottom: 25px;
+      margin-bottom: 18px;
       user-select: none;
     }
     #resetBtn {
@@ -96,13 +106,13 @@
       background-color: #004d40;
       color: white;
       font-weight: bold;
-      font-size: 1.2rem;
-      padding: 12px 30px;
+      font-size: 1rem;
+      padding: 10px 22px;
       border: none;
-      border-radius: 15px;
+      border-radius: 10px;
       cursor: pointer;
       user-select: none;
-      transition: background-color 0.3s ease;
+      transition: background-color 0.2s ease;
       margin: 0 auto;
       display: block;
     }
@@ -110,17 +120,15 @@
       background-color: #00796b;
     }
   </style>
-  <link
-    rel="stylesheet"
-    href="https://unpkg.com/leaflet/dist/leaflet.css"
-  />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 </head>
 <body>
   <h1>Drag & Drop a Photo to Find Its Location</h1>
 
-  <div id="drop-area" tabindex="0" aria-label="Drag and drop photo here or click to browse files">
-    Drag & Drop your photo here
-    <br />
+  <div id="drop-area" tabindex="0" role="button" aria-label="Drag and drop photo here or click to browse files">
+    <p>Drag & Drop your photo here</p>
+    <p>or</p>
     <button id="browseBtn" aria-label="Browse files to upload photo">Browse Files</button>
     <input type="file" id="fileElem" accept="image/*" />
   </div>
@@ -132,9 +140,11 @@
 
   <button id="resetBtn">Reset</button>
 
-  <script src="https://unpkg.com/exif-js"></script>
+  <!-- Use a reliable CDN path for exif-js -->
+  <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
+    console.log('Script loaded');
     const dropArea = document.getElementById('drop-area');
     const fileInput = document.getElementById('fileElem');
     const browseBtn = document.getElementById('browseBtn');
@@ -146,9 +156,16 @@
 
     let map;
 
+    // Sanity check for EXIF library
+    if (typeof EXIF === 'undefined') {
+      console.error('EXIF library did not load. Check the script src (network tab).');
+      exifDataDiv.textContent = 'Error: EXIF library not loaded. Check console/network.';
+    }
+
     // Prevent default drag behaviors for drop zone
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
       dropArea.addEventListener(eventName, preventDefaults, false);
+      document.body.addEventListener(eventName, preventDefaults, false);
     });
 
     function preventDefaults(e) {
@@ -168,8 +185,20 @@
     // Handle file dropped
     dropArea.addEventListener('drop', handleDrop, false);
 
+    // Make drop area clickable to open file picker
+    dropArea.addEventListener('click', () => fileInput.click());
+    dropArea.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        fileInput.click();
+      }
+    });
+
     // Handle click on Browse Files button
-    browseBtn.addEventListener('click', () => fileInput.click());
+    browseBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      fileInput.click();
+    });
 
     // Handle file selected via input
     fileInput.addEventListener('change', () => handleFiles(fileInput.files));
@@ -190,7 +219,7 @@
     }
 
     function handleFiles(files) {
-      if (!files.length) return;
+      if (!files || !files.length) return;
 
       const file = files[0];
 
@@ -207,7 +236,7 @@
       }
 
       // Validate image file type
-      if (!file.type.startsWith('image/')) {
+      if (!file.type || !file.type.startsWith('image/')) {
         alert('Please upload a valid image file.');
         return;
       }
@@ -218,32 +247,44 @@
       img.alt = 'Uploaded photo preview';
       output.appendChild(img);
 
-      EXIF.getData(file, function() {
-        const allExif = EXIF.getAllTags(this);
-        exifDataDiv.textContent = JSON.stringify(allExif, null, 2);
-
-        const lat = EXIF.getTag(this, 'GPSLatitude');
-        const lon = EXIF.getTag(this, 'GPSLongitude');
-        const latRef = EXIF.getTag(this, 'GPSLatitudeRef');
-        const lonRef = EXIF.getTag(this, 'GPSLongitudeRef');
-
-        if (lat && lon && latRef && lonRef) {
-          const latitude = toDecimal(lat, latRef);
-          const longitude = toDecimal(lon, lonRef);
-          locationText.textContent = `Location found: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-
-          map = L.map('map').setView([latitude, longitude], 15);
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap contributors'
-          }).addTo(map);
-          L.marker([latitude, longitude]).addTo(map).bindPopup('Photo Location').openPopup();
-        } else {
-          locationText.textContent = 'No GPS data found in the photo.';
-        }
-
+      if (typeof EXIF === 'undefined') {
+        exifDataDiv.textContent = 'EXIF library not loaded; cannot read metadata.';
         resetBtn.style.display = 'inline-block';
-      });
+        return;
+      }
+
+      try {
+        EXIF.getData(file, function() {
+          const allExif = EXIF.getAllTags(this);
+          exifDataDiv.textContent = JSON.stringify(allExif, null, 2);
+
+          const lat = EXIF.getTag(this, 'GPSLatitude');
+          const lon = EXIF.getTag(this, 'GPSLongitude');
+          const latRef = EXIF.getTag(this, 'GPSLatitudeRef');
+          const lonRef = EXIF.getTag(this, 'GPSLongitudeRef');
+
+          if (lat && lon && latRef && lonRef) {
+            const latitude = toDecimal(lat, latRef);
+            const longitude = toDecimal(lon, lonRef);
+            locationText.textContent = `Location found: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
+
+            map = L.map('map').setView([latitude, longitude], 15);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              maxZoom: 19,
+              attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            L.marker([latitude, longitude]).addTo(map).bindPopup('Photo Location').openPopup();
+          } else {
+            locationText.textContent = 'No GPS data found in the photo.';
+          }
+
+          resetBtn.style.display = 'inline-block';
+        });
+      } catch (err) {
+        console.error('Error reading EXIF data:', err);
+        exifDataDiv.textContent = 'Error reading EXIF data. See console.';
+        resetBtn.style.display = 'inline-block';
+      }
     }
 
     resetBtn.addEventListener('click', () => {
