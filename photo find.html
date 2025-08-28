@@ -1,153 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Photo Location Finder with Drag & Drop</title>
+  <title>Photo Location Finder — Take a Photo</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     body {
       font-family: Arial, sans-serif;
       max-width: 900px;
-      margin: 40px auto;
+      margin: 36px auto;
       padding: 20px;
       background: #f0f8ff;
       color: #222;
-      user-select: none;
     }
-    h1 {
-      text-align: center;
-      margin-bottom: 30px;
-      font-size: 2rem;
-      color: #004d40;
+    h1 { text-align:center; color:#004d40; margin-bottom:18px; }
+    #controls { text-align:center; margin-bottom:18px; }
+    /* prominent camera button */
+    #takePhotoBtn {
+      display:inline-block;
+      background:#00796b;
+      color:white;
+      font-size:1.1rem;
+      padding:14px 26px;
+      border-radius:12px;
+      border:none;
+      cursor:pointer;
+      box-shadow:0 6px 12px rgba(0,0,0,0.12);
     }
-    /* Drop area styles - made more prominent and ensured visibility */
-    #drop-area {
-      display: block;
-      min-height: 160px;
-      border: 4px dashed #00796b;
-      border-radius: 15px;
-      padding: 30px;
-      text-align: center;
-      font-size: 1.2rem;
-      color: #00796b;
-      font-weight: bold;
-      cursor: pointer;
-      background: #b2dfdb;
-      transition: background-color 0.25s ease, border-color 0.25s ease;
-      margin-bottom: 22px;
-      position: relative;
-      z-index: 1000;
-    }
-    #drop-area.highlight {
-      background-color: #004d40;
-      color: #e0f2f1;
-      border-color: #004d40;
-    }
-    #drop-area p {
-      margin: 6px 0;
-      font-size: 1rem;
-      font-weight: 600;
-    }
-    #browseBtn {
-      display: inline-block;
-      margin-top: 12px;
-      padding: 10px 22px;
-      font-size: 1rem;
-      border: none;
-      border-radius: 10px;
-      background-color: #00796b;
-      color: white;
-      cursor: pointer;
-      user-select: none;
-      transition: background-color 0.2s ease;
-    }
-    #browseBtn:hover {
-      background-color: #004d40;
-    }
-    #fileElem {
-      display: none;
-    }
-    #output img {
-      max-width: 100%;
-      border-radius: 12px;
-      margin-bottom: 16px;
-      box-shadow: 0 6px 12px rgba(0,0,0,0.12);
-      user-select: none;
-    }
-    #location-text {
-      font-size: 1.1rem;
-      font-weight: 700;
-      color: #004d40;
-      margin-bottom: 12px;
-      min-height: 22px;
-    }
-    #exif-data {
-      background: #e0f2f1;
-      border-radius: 10px;
-      padding: 12px;
-      font-family: monospace;
-      white-space: pre-wrap;
-      max-height: 200px;
-      overflow-y: auto;
-      margin-bottom: 18px;
-      color: #004d40;
-      box-shadow: inset 0 0 6px rgba(0,0,0,0.06);
-    }
-    #map {
-      height: 350px;
-      border-radius: 12px;
-      box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-      background: #e0f2f1;
-      margin-bottom: 18px;
-      user-select: none;
-    }
-    #resetBtn {
-      display: none;
-      background-color: #004d40;
-      color: white;
-      font-weight: bold;
-      font-size: 1rem;
-      padding: 10px 22px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      user-select: none;
-      transition: background-color 0.2s ease;
-      margin: 0 auto;
-      display: block;
-    }
-    #resetBtn:hover {
-      background-color: #00796b;
-    }
+    #takePhotoBtn:active{ transform:translateY(1px); }
+    #note { margin-top:10px; color:#004d40; font-weight:600; }
+    #output img { max-width:100%; border-radius:12px; margin-top:12px; box-shadow:0 6px 12px rgba(0,0,0,0.12); }
+    #location-text { margin-top:12px; font-weight:700; color:#004d40; min-height:22px; }
+    #exif-data { background:#e0f2f1; border-radius:10px; padding:10px; font-family:monospace; white-space:pre-wrap; max-height:160px; overflow:auto; margin-top:12px; color:#004d40; }
+    #map { height:350px; margin-top:14px; border-radius:12px; box-shadow:0 10px 20px rgba(0,0,0,0.08); }
+    #resetBtn { display:none; margin:18px auto 0; background:#004d40; color:#fff; padding:10px 20px; border-radius:10px; border:none; cursor:pointer; }
   </style>
-
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
 </head>
 <body>
-  <h1>Drag & Drop a Photo to Find Its Location</h1>
+  <h1>Take a Photo to Find Its Location</h1>
 
-  <div id="drop-area" tabindex="0" role="button" aria-label="Drag and drop photo here or click to browse files">
-    <p>Drag & Drop your photo here</p>
-    <p>or</p>
-    <button id="browseBtn" aria-label="Browse files to upload photo">Browse Files</button>
-    <input type="file" id="fileElem" accept="image/*" />
+  <div id="controls">
+    <!-- This button opens the camera app on mobile devices (capture="environment") -->
+    <button id="takePhotoBtn" aria-label="Take a photo">Take Photo (camera)</button>
+    <div id="note">Tap the button to open your camera. On desktop it will open a file chooser.</div>
+
+    <!-- hidden file input used to open camera or file picker.
+         capture="environment" hints to use the back camera on mobile devices. -->
+    <input type="file" id="fileElem" accept="image/*" capture="environment" style="display:none" />
   </div>
 
-  <div id="output" aria-live="polite" aria-atomic="true"></div>
-  <div id="location-text" aria-live="polite" aria-atomic="true"></div>
+  <div id="output" aria-live="polite"></div>
+  <div id="location-text" aria-live="polite"></div>
   <div id="exif-data"></div>
   <div id="map"></div>
 
   <button id="resetBtn">Reset</button>
 
-  <!-- Use a reliable CDN path for exif-js -->
   <script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script>
-    console.log('Script loaded');
-    const dropArea = document.getElementById('drop-area');
+    // Narrative: I made a big visible "Take Photo" button wired to a hidden file input
+    // that uses capture="environment" so mobile devices open the camera. After a photo
+    // is taken or selected we read EXIF. If GPS EXIF is missing we fall back to the
+    // device Geolocation API to find where the user is.
+
+    const takePhotoBtn = document.getElementById('takePhotoBtn');
     const fileInput = document.getElementById('fileElem');
-    const browseBtn = document.getElementById('browseBtn');
     const output = document.getElementById('output');
     const locationText = document.getElementById('location-text');
     const exifDataDiv = document.getElementById('exif-data');
@@ -156,106 +75,66 @@
 
     let map;
 
-    // Sanity check for EXIF library
-    if (typeof EXIF === 'undefined') {
-      console.error('EXIF library did not load. Check the script src (network tab).');
-      exifDataDiv.textContent = 'Error: EXIF library not loaded. Check console/network.';
-    }
+    // Open camera / file picker when the button is pressed
+    takePhotoBtn.addEventListener('click', () => fileInput.click());
 
-    // Prevent default drag behaviors for drop zone
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-      dropArea.addEventListener(eventName, preventDefaults, false);
-      document.body.addEventListener(eventName, preventDefaults, false);
-    });
-
-    function preventDefaults(e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
-    // Highlight drop area when file is dragged over it
-    ['dragenter', 'dragover'].forEach(eventName => {
-      dropArea.addEventListener(eventName, () => dropArea.classList.add('highlight'), false);
-    });
-
-    ['dragleave', 'drop'].forEach(eventName => {
-      dropArea.addEventListener(eventName, () => dropArea.classList.remove('highlight'), false);
-    });
-
-    // Handle file dropped
-    dropArea.addEventListener('drop', handleDrop, false);
-
-    // Make drop area clickable to open file picker
-    dropArea.addEventListener('click', () => fileInput.click());
-    dropArea.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        fileInput.click();
-      }
-    });
-
-    // Handle click on Browse Files button
-    browseBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      fileInput.click();
-    });
-
-    // Handle file selected via input
+    // Handle file selected or taken by camera
     fileInput.addEventListener('change', () => handleFiles(fileInput.files));
 
-    function handleDrop(e) {
-      const dt = e.dataTransfer;
-      const files = dt.files;
-      handleFiles(files);
-    }
-
+    // Utility to convert EXIF GPS arrays to decimal
     function toDecimal(coord, ref) {
-      const degrees = coord[0].numerator / coord[0].denominator;
-      const minutes = coord[1].numerator / coord[1].denominator;
-      const seconds = coord[2].numerator / coord[2].denominator;
-      let dec = degrees + minutes / 60 + seconds / 3600;
-      if (ref === 'S' || ref === 'W') dec = -dec;
-      return dec;
+      try {
+        const degrees = coord[0].numerator / coord[0].denominator;
+        const minutes = coord[1].numerator / coord[1].denominator;
+        const seconds = coord[2].numerator / coord[2].denominator;
+        let dec = degrees + minutes / 60 + seconds / 3600;
+        if (ref === 'S' || ref === 'W') dec = -dec;
+        return dec;
+      } catch (err) {
+        console.warn('Invalid EXIF coord format', err);
+        return null;
+      }
     }
 
-    function handleFiles(files) {
-      if (!files || !files.length) return;
-
-      const file = files[0];
-
-      // Clear previous data
+    function clearAll() {
       output.innerHTML = '';
       locationText.textContent = '';
       exifDataDiv.textContent = '';
-      resetBtn.style.display = 'none';
       mapDiv.innerHTML = '';
+      if (map) { map.remove(); map = null; }
+      resetBtn.style.display = 'none';
+      fileInput.value = '';
+    }
 
-      if (map) {
-        map.remove();
-        map = null;
-      }
+    resetBtn.addEventListener('click', clearAll);
 
-      // Validate image file type
+    async function handleFiles(files) {
+      if (!files || !files.length) return;
+      clearAll();
+
+      const file = files[0];
       if (!file.type || !file.type.startsWith('image/')) {
-        alert('Please upload a valid image file.');
+        alert('Please use an image file.');
         return;
       }
 
-      // Show image preview
+      // show preview
       const img = document.createElement('img');
       img.src = URL.createObjectURL(file);
-      img.alt = 'Uploaded photo preview';
+      img.alt = 'Photo preview';
       output.appendChild(img);
 
+      // Read EXIF using exif-js
       if (typeof EXIF === 'undefined') {
-        exifDataDiv.textContent = 'EXIF library not loaded; cannot read metadata.';
-        resetBtn.style.display = 'inline-block';
+        exifDataDiv.textContent = 'EXIF library not loaded.';
+        fallbackToGeolocation('EXIF not available — trying device location.');
+        resetBtn.style.display = 'block';
         return;
       }
 
       try {
         EXIF.getData(file, function() {
-          const allExif = EXIF.getAllTags(this);
+          const allExif = EXIF.getAllTags(this) || {};
           exifDataDiv.textContent = JSON.stringify(allExif, null, 2);
 
           const lat = EXIF.getTag(this, 'GPSLatitude');
@@ -266,39 +145,78 @@
           if (lat && lon && latRef && lonRef) {
             const latitude = toDecimal(lat, latRef);
             const longitude = toDecimal(lon, lonRef);
-            locationText.textContent = `Location found: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-
-            map = L.map('map').setView([latitude, longitude], 15);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-              maxZoom: 19,
-              attribution: '© OpenStreetMap contributors'
-            }).addTo(map);
-            L.marker([latitude, longitude]).addTo(map).bindPopup('Photo Location').openPopup();
+            if (latitude != null && longitude != null) {
+              showLocationOnMap(latitude, longitude, 'Location from photo EXIF');
+            } else {
+              fallbackToGeolocation('Photo has GPS EXIF but conversion failed — using device location.');
+            }
           } else {
-            locationText.textContent = 'No GPS data found in the photo.';
+            // no GPS in EXIF — use device geolocation as fallback
+            fallbackToGeolocation('No GPS data found in photo EXIF — using device location.');
           }
 
-          resetBtn.style.display = 'inline-block';
+          resetBtn.style.display = 'block';
         });
       } catch (err) {
-        console.error('Error reading EXIF data:', err);
-        exifDataDiv.textContent = 'Error reading EXIF data. See console.';
-        resetBtn.style.display = 'inline-block';
+        console.error('Error reading EXIF:', err);
+        exifDataDiv.textContent = 'Error reading EXIF: ' + (err && err.message ? err.message : err);
+        fallbackToGeolocation('Error reading EXIF — using device location.');
+        resetBtn.style.display = 'block';
       }
     }
 
-    resetBtn.addEventListener('click', () => {
-      output.innerHTML = '';
-      locationText.textContent = '';
-      exifDataDiv.textContent = '';
-      mapDiv.innerHTML = '';
-      resetBtn.style.display = 'none';
-      if (map) {
-        map.remove();
-        map = null;
+    // Shows a marker on the map and sets message
+    function showLocationOnMap(lat, lon, message) {
+      locationText.textContent = `Location found: ${lat.toFixed(6)}, ${lon.toFixed(6)} — ${message || ''}`;
+
+      // create map if not present
+      map = L.map('map').setView([lat, lon], 15);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+      L.marker([lat, lon]).addTo(map).bindPopup(message || 'Location').openPopup();
+    }
+
+    // Try to get device location (requires HTTPS and permission)
+    function fallbackToGeolocation(statusMessage) {
+      locationText.textContent = statusMessage || 'Trying device location...';
+
+      if (!('geolocation' in navigator)) {
+        locationText.textContent = 'Geolocation API not available in this browser.';
+        return;
       }
-      fileInput.value = '';
-    });
+
+      // Request position, with a short timeout
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          showLocationOnMap(lat, lon, 'Location from device GPS');
+        },
+        (err) => {
+          console.warn('Geolocation error', err);
+          switch (err.code) {
+            case err.PERMISSION_DENIED:
+              locationText.textContent = 'Device location permission denied. Photo had no GPS EXIF.';
+              break;
+            case err.POSITION_UNAVAILABLE:
+              locationText.textContent = 'Device location unavailable.';
+              break;
+            case err.TIMEOUT:
+              locationText.textContent = 'Getting device location timed out.';
+              break;
+            default:
+              locationText.textContent = 'Error obtaining device location: ' + (err.message || err);
+          }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+
+    // Helpful note: on most mobile browsers the capture attribute opens the camera.
+    // Important: for camera access and geolocation the page should be served over HTTPS
+    // (or be on localhost). If you test from the file:// protocol some features may be blocked.
   </script>
 </body>
 </html>
