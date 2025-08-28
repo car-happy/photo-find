@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Photo & Location Web App</title>
+  <style>
+    #video, #canvas {
+      width: 300px;
+      height: 225px;
+      border: 1px solid black;
+    }
+    #map {
+      width: 300px;
+      height: 300px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Photo & Location Finder</h1>
+  <video id="video" autoplay></video><br />
+  <button id="snap">Take Photo</button>
+  <canvas id="canvas"></canvas>
+  <p id="location"></p>
+  <div id="map"></div>
+
+  <!-- Leaflet.js for map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const snap = document.getElementById('snap');
+    const locationText = document.getElementById('location');
+    const context = canvas.getContext('2d');
+    const mapDiv = document.getElementById('map');
+    let map;
+
+    // Access camera
+    navigator.mediaDevices.getUserMedia({ video: true })
+      .then(stream => {
+        video.srcObject = stream;
+      })
+      .catch(err => alert('Error accessing camera: ' + err));
+
+    snap.addEventListener('click', () => {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    });
+
+    // Get geolocation
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(position => {
+        const lat = position.coords.latitude;
+        const lon = position.coords.longitude;
+        locationText.textContent = `Your Location: ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+
+        // Initialize map using Leaflet
+        map = L.map('map').setView([lat, lon], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '© OpenStreetMap'
+        }).addTo(map);
+        L.marker([lat, lon]).addTo(map).bindPopup("You are here").openPopup();
+      }, err => {
+        locationText.textContent = 'Error getting location: ' + err.message;
+      });
+    } else {
+      locationText.textContent = "Geolocation is not supported by your browser.";
+    }
+  </script>
+</body>
+</html>
